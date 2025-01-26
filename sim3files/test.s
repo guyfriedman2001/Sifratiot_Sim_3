@@ -1,5 +1,8 @@
 .text
 main:   # Put your code here
+        lw              t0, 8(x0)
+        addi            t1, t0, 12
+        sw              t1, 16(x0)
         add		t6, x0, x0
         beq		t6, x0, finish
 

@@ -20,8 +20,8 @@
      output logic [1:0] wbsel,
      output logic regwen,
      output logic [1:0] immsel,
-     output logic asel,
-     output logic bsel,
+     output logic [1:0]asel,
+     output logic [1:0]bsel,
      output logic [3:0] alusel,
      output logic mdrwrite,
      
@@ -74,6 +74,7 @@ sm_type current,next;
             casex (opcode_funct3)
                 LW:     next = LSW_ADDR;
                 SW:     next = LSW_ADDR;
+                ADDI:   next = LSW_ADDR;
                 ALU:    next = RTYPE_ALU;
                 BEQ:    next = BEQ_EXEC;
                 JAL:    next = JAL_EXEC;
@@ -85,12 +86,19 @@ sm_type current,next;
             casex (opcode_funct3)
                 LW:     next = LW_MEM;
                 SW:     next = SW_MEM;
+                ADDI:   next = LW_MEM;
                 // This is never reached
                 default:next = SW_MEM;
             endcase
         end
-        LW_MEM:
-            next = LW_WB;
+       LW_MEM: begin
+            casex (opcode_funct3)
+                LW:     next = LW_WB;
+                ADDI:   next = RTYPE_WB;
+                // This is never reached
+                default:next = LW_WB;
+            endcase
+        end
         LW_WB:
             next = FETCH;
         SW_MEM:
@@ -141,13 +149,28 @@ sm_type current,next;
             alusel      = ALU_ADD;
         end
         LSW_ADDR: begin
-            immsel      = (opcode_funct3 == LW) ? IMM_L : IMM_S;
+            immsel      = (opcode_funct3 == LW || opcode_funct3 == ADDI) ? IMM_L : IMM_S;
             asel        = ALUA_REG;
             bsel        = ALUB_IMM;
             alusel      = ALU_ADD;
         end
-        LW_MEM:
-            mdrwrite    = 1'b1;
+        LW_MEM: begin
+            casex(opcode_funct3)
+                LW: begin
+                    //asel        = ALUA_ALUOUT;
+                    //bsel        = ALUB_ONE;
+                    //alusel      = ALU_ADD;
+                    mdrwrite    = 1'b1;
+                end
+                ADDI: begin
+                    asel        = ALUA_ALUOUT;
+                    bsel        = ALUB_ONE;
+                    alusel      = ALU_XOR;
+                end
+                default: // Should never reach this
+                 mdrwrite    = 1'b1;
+            endcase
+        end
         LW_WB: begin
             wbsel       = WB_MDR;
             regwen      = 1'b1;
